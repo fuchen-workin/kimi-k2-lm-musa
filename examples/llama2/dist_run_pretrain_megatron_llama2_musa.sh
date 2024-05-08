@@ -22,7 +22,7 @@ set -u
   HOSTFILE=./hostfile
   LOG_FILE=./output/$CURRENT_TIME/$EXPNAME.log
   TOKENIZED_MODEL=./llama_config/tokenizer.model
-  SCRIPT_FILE=./tiny_model_test/run_pretrain_llama2_cuda.sh
+  SCRIPT_FILE=./tiny_model_test/run_pretrain_llama2_musa.sh
 set +u
 
 cmd="bash -c 'cd $WORK_HOME; \
