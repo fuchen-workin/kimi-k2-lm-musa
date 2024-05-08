@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Runs the "175B" parameter model
+
+# Please change the following envrioment variables
+# base on the cluster configuration
 set -u
   WORK_HOME=$1
   PATCH_HOME=$2
@@ -12,10 +16,9 @@ set -u
   GLOBAL_BATCH_SIZE=$9
   TOKENIZED_MODEL=${10}
 set +u
-
-export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 export OMP_NUM_THREADS=4
-export CUDA_VISIBLE_DEVICES='5,6'
+export MUSA_VISIBLE_DEVICES='0,1,2,3,4,5,6,7'
+export MUSA_KERNEL_TIMEOUT=3200000
 export NCCL_PROTOS=2
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 MEGATRON_PATH=${PATCH_HOME}/Megatron-LM-240419
@@ -38,11 +41,10 @@ mkdir -p $WB_PATH
 
 
 export NODE_ADDR=$(ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2;}'|tr -d "addr:"|head -n 1)
-export GPUS_PER_NODE=2
+export GPUS_PER_NODE=8
 export NUM_NODES=$(cat $HOSTFILE | wc -l)
 export MASTER_ADDR=$(head -n1 $HOSTFILE | awk '{print $1;}')
-#export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks["'$NODE_ADDR'"];}' $HOSTFILE)
-export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks[$NODE_ADDR];}' $HOSTFILE)
+export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks["'$NODE_ADDR'"];}' $HOSTFILE)
 export MASTER_PORT=12355
 
 
@@ -69,7 +71,7 @@ MODEL_ARGS=(
     --untie-embeddings-and-output-weights
 )
 
-# 244140625 1T
+# 24414062 1T
 TRAINING_ARGS=(
     --seed 42 
     --micro-batch-size $MICRO_BATCH_SIZE 
@@ -84,7 +86,7 @@ TRAINING_ARGS=(
     --recompute-granularity full 
     --recompute-method block 
     --recompute-num-layers 0 
-    --distributed-backend nccl 
+    --distributed-backend mccl 
 )
 
 REGULARIZATION_ARGS=(
@@ -114,7 +116,7 @@ MODEL_PARALLEL_ARGS=(
 )
 
 MIXED_PRECISION_ARGS=(
-    --fp16 
+    --bf16 
     --attention-softmax-in-fp32 
     --no-masked-softmax-fusion 
     --accumulate-allreduce-grads-in-fp32
@@ -138,7 +140,7 @@ DATA_ARGS="
 
 EVAL_AND_LOGGING_ARGS=(
     --log-interval 1
-    --save-interval 2000
+    --save-interval 2000 
     --eval-interval 1000 
     --save $CHECKPOINT_PATH 
     --load $CHECKPOINT_PATH 
@@ -146,6 +148,15 @@ EVAL_AND_LOGGING_ARGS=(
     --tensorboard-dir $TB_PATH 
 )
 
+MOE_ARGS=(
+    --num-experts 8
+    --expert-model-parallel-size 2
+    --moe-token-dispatcher-type alltoall
+    --moe-router-load-balancing-type aux_loss
+    --moe-router-topk 2
+    --moe-aux-loss-coeff 1e-2
+    --moe-z-loss-coeff 1e-3
+)
 # if [ -n "${WANDB_API_KEY}" ]; then
 #     EVAL_AND_LOGGING_ARGS+=(
 #         --wandb-project ${WANDB_PROJECT:-"Mixtral-Finetuning"}
@@ -161,6 +172,7 @@ cmd="torchrun ${DISTRIBUTED_ARGS[@]} $MEGATRON_PATH/pretrain_gpt.py \
         ${MODEL_PARALLEL_ARGS[@]} \
         ${MIXED_PRECISION_ARGS[@]}
         ${DATA_ARGS[@]} \
+        ${MOE_ARGS[@]} \
         ${EVAL_AND_LOGGING_ARGS[@]}
     "
 echo $cmd

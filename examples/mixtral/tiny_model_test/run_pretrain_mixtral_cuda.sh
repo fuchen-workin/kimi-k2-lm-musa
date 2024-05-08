@@ -15,7 +15,7 @@ set +u
 
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 export OMP_NUM_THREADS=4
-export CUDA_VISIBLE_DEVICES='5,6'
+export CUDA_VISIBLE_DEVICES='0,1,2,3,4,5,6,7'
 export NCCL_PROTOS=2
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 MEGATRON_PATH=${PATCH_HOME}/Megatron-LM-240419
@@ -38,11 +38,10 @@ mkdir -p $WB_PATH
 
 
 export NODE_ADDR=$(ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2;}'|tr -d "addr:"|head -n 1)
-export GPUS_PER_NODE=2
+export GPUS_PER_NODE=8
 export NUM_NODES=$(cat $HOSTFILE | wc -l)
 export MASTER_ADDR=$(head -n1 $HOSTFILE | awk '{print $1;}')
-#export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks["'$NODE_ADDR'"];}' $HOSTFILE)
-export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks[$NODE_ADDR];}' $HOSTFILE)
+export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks["'$NODE_ADDR'"];}' $HOSTFILE)
 export MASTER_PORT=12355
 
 
@@ -114,7 +113,7 @@ MODEL_PARALLEL_ARGS=(
 )
 
 MIXED_PRECISION_ARGS=(
-    --fp16 
+    --bf16 
     --attention-softmax-in-fp32 
     --no-masked-softmax-fusion 
     --accumulate-allreduce-grads-in-fp32
@@ -146,6 +145,16 @@ EVAL_AND_LOGGING_ARGS=(
     --tensorboard-dir $TB_PATH 
 )
 
+MOE_ARGS=(
+    --num-experts 8
+    --expert-model-parallel-size 2
+    --moe-token-dispatcher-type alltoall
+    --moe-router-load-balancing-type aux_loss
+    --moe-router-topk 2
+    --moe-aux-loss-coeff 1e-2
+    --moe-z-loss-coeff 1e-3
+)
+
 # if [ -n "${WANDB_API_KEY}" ]; then
 #     EVAL_AND_LOGGING_ARGS+=(
 #         --wandb-project ${WANDB_PROJECT:-"Mixtral-Finetuning"}
@@ -161,6 +170,7 @@ cmd="torchrun ${DISTRIBUTED_ARGS[@]} $MEGATRON_PATH/pretrain_gpt.py \
         ${MODEL_PARALLEL_ARGS[@]} \
         ${MIXED_PRECISION_ARGS[@]}
         ${DATA_ARGS[@]} \
+        ${MOE_ARGS[@]} \
         ${EVAL_AND_LOGGING_ARGS[@]}
     "
 echo $cmd
