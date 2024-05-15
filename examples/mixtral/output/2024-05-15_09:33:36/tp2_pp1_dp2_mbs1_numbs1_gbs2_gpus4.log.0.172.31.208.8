@@ -1,0 +1,80 @@
+torchrun --nproc_per_node 4 --nnodes 1 --node_rank 0 --master_addr 172.31.208.8 --master_port 12355 /data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/pretrain_mixtral.py --num-layers 12 --hidden-size 768 --num-attention-heads 12 --seq-length 512 --max-position-embeddings 512 --norm-epsilon 1e-5 --init-method-std 0.01 --attention-dropout 0.0 --hidden-dropout 0.0 --disable-bias-linear --position-embedding-type rope --no-position-embedding --swiglu --normalization RMSNorm --untie-embeddings-and-output-weights --seed 42 --micro-batch-size 1 --global-batch-size 2 --train-samples 24414062 --init-method-std 0.0165 --use-mcore-models --no-gradient-accumulation-fusion --use-distributed-optimizer --use-flash-attn --sequence-parallel --recompute-granularity full --recompute-method block --recompute-num-layers 0 --distributed-backend nccl --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.95 --clip-grad 1.0 --lr 1.5e-5 --lr-decay-style cosine --lr-warmup-samples 4000 --min-lr 1.5e-6 --initial-loss-scale 65536 --min-loss-scale 1.0 --tensor-model-parallel-size 2 --pipeline-model-parallel-size 1 --bf16 --attention-softmax-in-fp32 --no-masked-softmax-fusion --accumulate-allreduce-grads-in-fp32 --data-path /data0/haoran.huang/oscar/oscar_9_text_document --tokenizer-type=SentencePieceTokenizer --tokenizer-model ./llama_config/tokenizer.model --split 1 --num-experts 8 --expert-model-parallel-size 2 --moe-token-dispatcher-type alltoall --moe-router-load-balancing-type aux_loss --moe-router-topk 2 --moe-aux-loss-coeff 1e-2 --moe-z-loss-coeff 1e-3 --log-interval 1 --save-interval 2000 --eval-interval 1000 --save /data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/checkpoints/tp2_pp1_dp2_mbs1_numbs1_gbs2_gpus4 --load /data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/checkpoints/tp2_pp1_dp2_mbs1_numbs1_gbs2_gpus4 --eval-iters 0 --tensorboard-dir /data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/tboard/tp2_pp1_dp2_mbs1_numbs1_gbs2_gpus4
+[1715765616.940200] [GPU006:279863:f]        vfs_fuse.c:281  UCX  ERROR inotify_add_watch(/tmp) failed: No space left on device
+[1715765618.061499] [GPU006:279883:f]        vfs_fuse.c:281  UCX  ERROR inotify_add_watch(/tmp) failed: No space left on device
+[1715765618.061504] [GPU006:279886:f]        vfs_fuse.c:281  UCX  ERROR inotify_add_watch(/tmp) failed: No space left on device
+[1715765618.061520] [GPU006:279885:f]        vfs_fuse.c:281  UCX  ERROR inotify_add_watch(/tmp) failed: No space left on device
+[1715765618.064522] [GPU006:279884:f]        vfs_fuse.c:281  UCX  ERROR inotify_add_watch(/tmp) failed: No space left on device
+Traceback (most recent call last):
+  File "/data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/pretrain_mixtral.py", line 9, in <module>
+    import musa_patch
+  File "/data2/yutian.rong/projects/megatron-lm-musa-patch/musa_patch/__init__.py", line 4, in <module>
+    import torch_musa
+ModuleNotFoundError: No module named 'torch_musa'
+Traceback (most recent call last):
+  File "/data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/pretrain_mixtral.py", line 9, in <module>
+    import musa_patch
+  File "/data2/yutian.rong/projects/megatron-lm-musa-patch/musa_patch/__init__.py", line 4, in <module>
+    import torch_musa
+ModuleNotFoundError: No module named 'torch_musa'
+Traceback (most recent call last):
+  File "/data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/pretrain_mixtral.py", line 9, in <module>
+    import musa_patch
+  File "/data2/yutian.rong/projects/megatron-lm-musa-patch/musa_patch/__init__.py", line 4, in <module>
+    import torch_musa
+ModuleNotFoundError: No module named 'torch_musa'
+Traceback (most recent call last):
+  File "/data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/pretrain_mixtral.py", line 9, in <module>
+    import musa_patch
+  File "/data2/yutian.rong/projects/megatron-lm-musa-patch/musa_patch/__init__.py", line 4, in <module>
+    import torch_musa
+ModuleNotFoundError: No module named 'torch_musa'
+[2024-05-15 09:33:42,950] torch.distributed.elastic.multiprocessing.api: [ERROR] failed (exitcode: 1) local_rank: 0 (pid: 279883) of binary: /usr/bin/python
+Traceback (most recent call last):
+  File "/usr/local/bin/torchrun", line 8, in <module>
+    sys.exit(main())
+  File "/usr/local/lib/python3.10/dist-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 351, in wrapper
+    return f(*args, **kwargs)
+  File "/usr/local/lib/python3.10/dist-packages/torch/distributed/run.py", line 806, in main
+    run(args)
+  File "/usr/local/lib/python3.10/dist-packages/torch/distributed/run.py", line 797, in run
+    elastic_launch(
+  File "/usr/local/lib/python3.10/dist-packages/torch/distributed/launcher/api.py", line 134, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/usr/local/lib/python3.10/dist-packages/torch/distributed/launcher/api.py", line 264, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/data2/yutian.rong/projects/megatron-lm-musa-patch/examples/mixtral/pretrain_mixtral.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2024-05-15_09:33:42
+  host      : GPU006
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 279884)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[2]:
+  time      : 2024-05-15_09:33:42
+  host      : GPU006
+  rank      : 2 (local_rank: 2)
+  exitcode  : 1 (pid: 279885)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[3]:
+  time      : 2024-05-15_09:33:42
+  host      : GPU006
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 279886)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2024-05-15_09:33:42
+  host      : GPU006
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 279883)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
