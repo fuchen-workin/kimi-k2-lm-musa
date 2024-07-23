@@ -3,7 +3,6 @@
 import numbers
 
 import torch
-import torch_musa
 from torch import Tensor
 from torch.nn import init
 from torch.nn.parameter import Parameter
@@ -54,7 +53,15 @@ class FusedLayerNorm(torch.nn.Module):
         if self.config.normalization == "LayerNorm":
             self.norm_impl = torch.layer_norm
         elif self.config.normalization == "RMSNorm":
-            self.norm_impl = torch.rms_norm
+            def naive_rms_norm(hidden_states, hidden_size, weight, eps):        
+                variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
+                hidden_states = hidden_states * torch.rsqrt(variance + eps)
+                # convert into half-precision if necessary
+                if self.weight.dtype in [torch.float16, torch.bfloat16]:
+                    hidden_states = hidden_states.to(self.weight.dtype)
+                hidden_states = weight * hidden_states
+                return hidden_states 
+            self.norm_impl = naive_rms_norm
         else:
             raise ValueError(f'({self.config.normalization}) is not supported in FusedLayerNorm')
 

@@ -48,7 +48,7 @@ export GPUS_PER_NODE=8
 export NUM_NODES=$(cat $HOSTFILE | wc -l)
 export MASTER_ADDR=$(head -n1 $HOSTFILE | awk '{print $1;}')
 export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks["'$NODE_ADDR'"];}' $HOSTFILE)
-export MASTER_PORT=12355
+export MASTER_PORT=12356
 # export MUSA_LAUNCH_BLOCKING=1
 
 
@@ -61,9 +61,11 @@ DISTRIBUTED_ARGS=(
 )
 
 MODEL_ARGS=(
-    --num-layers 32
-    --hidden-size 2048 
-    --num-attention-heads 16 
+    --num-layers 32  # 32 
+    --hidden-size 4096 
+    --num-attention-heads 32
+    --group-query-attention 
+    --num-query-groups 8  
     --seq-length 4096 
     --max-position-embeddings 4096 
     --norm-epsilon 1e-5 
@@ -72,7 +74,7 @@ MODEL_ARGS=(
     --hidden-dropout 0.0 
     --disable-bias-linear 
     # --vocab-size=256000
-    --ffn-hidden-size 5504
+    --ffn-hidden-size 14336  # 5504
     --position-embedding-type rope 
     --no-position-embedding 
     --swiglu 
@@ -166,6 +168,7 @@ MOE_ARGS=(
     --moe-z-loss-coeff 1e-3
     --moe-expert-capacity-factor 4.0 
 )
+# --moe-pad-expert-input-to-capacity
 # if [ -n "${WANDB_API_KEY}" ]; then
 #     EVAL_AND_LOGGING_ARGS+=(
 #         --wandb-project ${WANDB_PROJECT:-"Mixtral-Finetuning"}

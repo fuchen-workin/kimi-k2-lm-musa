@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Runs the "175B" parameter model
-
-# Please change the following envrioment variables
-# base on the cluster configuration
 set -u
   WORK_HOME=$1
   PATCH_HOME=$2
@@ -17,16 +13,16 @@ set -u
   GLOBAL_BATCH_SIZE=${10}
   TOKENIZED_MODEL=${11}
 set +u
+
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 export OMP_NUM_THREADS=4
-export MUSA_VISIBLE_DEVICES='0,1,2,3,4,5,6,7'
-export MUSA_KERNEL_TIMEOUT=3200000
-export ACCELERATOR_BACKEND="musa"
+export CUDA_VISIBLE_DEVICES='0,1,2,3,4,5,6,7'
 export NCCL_PROTOS=2
-export NCCL_CHECK_POINTERS=0
+export ACCELERATOR_BACKEND="cuda"
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 MEGATRON_PATH=${PATCH_HOME}/Megatron-LM-240521
 export PYTHONPATH=${MEGATRON_PATH}:${PATCH_HOME}:$PYTHONPATH
-# export MUSA_LAUNCH_BLOCKING=1
+
 
 CHECKPOINT_PATH=$WORK_HOME/checkpoints/$EXPNAME
 mkdir -p $CHECKPOINT_PATH
@@ -49,7 +45,6 @@ export NUM_NODES=$(cat $HOSTFILE | wc -l)
 export MASTER_ADDR=$(head -n1 $HOSTFILE | awk '{print $1;}')
 export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks["'$NODE_ADDR'"];}' $HOSTFILE)
 export MASTER_PORT=12355
-# export MUSA_LAUNCH_BLOCKING=1
 
 
 DISTRIBUTED_ARGS=(
@@ -61,9 +56,11 @@ DISTRIBUTED_ARGS=(
 )
 
 MODEL_ARGS=(
-    --num-layers 32
-    --hidden-size 2048 
-    --num-attention-heads 16 
+    --num-layers 32  # 32 
+    --hidden-size 4096 
+    --num-attention-heads 32
+    --group-query-attention 
+    --num-query-groups 8  
     --seq-length 4096 
     --max-position-embeddings 4096 
     --norm-epsilon 1e-5 
@@ -71,8 +68,8 @@ MODEL_ARGS=(
     --attention-dropout 0.0 
     --hidden-dropout 0.0 
     --disable-bias-linear 
-    # --vocab-size=256000
-    --ffn-hidden-size 5504
+    --ffn-hidden-size 14336  # 5504
+
     --position-embedding-type rope 
     --no-position-embedding 
     --swiglu 
@@ -80,7 +77,7 @@ MODEL_ARGS=(
     --untie-embeddings-and-output-weights
 )
 
-# 24414062 1T
+# 244140625 1T
 TRAINING_ARGS=(
     --seed 42 
     --micro-batch-size $MICRO_BATCH_SIZE 
@@ -148,8 +145,8 @@ DATA_ARGS="
 
 EVAL_AND_LOGGING_ARGS=(
     --log-interval 1
-    --save-interval 100000 
-    --eval-interval 1 
+    --save-interval 200000
+    --eval-interval 1000 
     --save $CHECKPOINT_PATH 
     --load $CHECKPOINT_PATH 
     --eval-iters 0
@@ -166,6 +163,7 @@ MOE_ARGS=(
     --moe-z-loss-coeff 1e-3
     --moe-expert-capacity-factor 4.0 
 )
+
 # if [ -n "${WANDB_API_KEY}" ]; then
 #     EVAL_AND_LOGGING_ARGS+=(
 #         --wandb-project ${WANDB_PROJECT:-"Mixtral-Finetuning"}
