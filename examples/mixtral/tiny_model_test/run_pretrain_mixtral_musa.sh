@@ -26,6 +26,11 @@ export CUDA_DEVICE_MAX_CONNECTIONS=1
 MEGATRON_PATH=${PATCH_HOME}/Megatron-LM-240521
 export PYTHONPATH=${MEGATRON_PATH}:${PATCH_HOME}:$PYTHONPATH
 #export MUSA_LAUNCH_BLOCKING=1
+if [ ! -d "${MEGATRON_PATH}/build" ]; then
+    cd "${MEGATRON_PATH}"
+    python setup.py build_ext --inplace
+    cd -
+fi
 
 # MCCL DEBUG
 # export NCCL_DEBUG_FILE="/home/dist/yutian/megatron-lm-musa-patch/examples/mixtral/mccl_debug/debug.%h.%p"
