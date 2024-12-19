@@ -9,22 +9,19 @@ set -u
   TP_SIZE=$6
   PP_SIZE=$7
   MICRO_BATCH_SIZE=$8
-  GLOBAL_BATCH_SIZE=${9}
+  GLOBAL_BATCH_SIZE=$9
   TOKENIZED_MODEL=${10}
 set +u
-# export ENABLE_PROFILER=1
-# export PROFILER_FREQ=4
-export OMP_NUM_THREADS=4
-export MUSA_VISIBLE_DEVICES='0,1,2,3,4,5,6,7'
-export MUSA_KERNEL_TIMEOUT=3200000
-export ACCELERATOR_BACKEND="musa"
-export MCCL_PROTOS=2
-export MCCL_CHECK_POINTERS=0
-export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-MEGATRON_PATH=${PATCH_HOME}/../Megatron-LM
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+export OMP_NUM_THREADS=4
+export CUDA_VISIBLE_DEVICES='0,1,2,3,4,5,6,7'
+export ACCELERATOR_BACKEND="cuda"
+# export NCCL_PROTOS=2
+export CUDA_DEVICE_MAX_CONNECTIONS=1
+export NCCL_AVOID_RECORD_STREAMS=0
+MEGATRON_PATH=${PATCH_HOME}/Megatron-LM-240521
 export PYTHONPATH=${MEGATRON_PATH}:${PATCH_HOME}:$PYTHONPATH
-# export MUSA_LAUNCH_BLOCKING=1
 
 if [ ! -d "${MEGATRON_PATH}/build" ]; then
     cd "${MEGATRON_PATH}"
@@ -32,9 +29,10 @@ if [ ! -d "${MEGATRON_PATH}/build" ]; then
     cd -
 fi
 
+
 CHECKPOINT_PATH=$WORK_HOME/checkpoints/$EXPNAME
 mkdir -p $CHECKPOINT_PATH
-DATA_PATH=$DATA_DIR
+DATA_PATH=$DATA_DIR/oscar_9_text_document
 
 
 LOG_PATH=$WORK_HOME/logs/$EXPNAME
@@ -47,14 +45,18 @@ mkdir -p $WB_PATH
 
 
 
-export NODE_ADDR=$(ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2;}'|tr -d "addr:"|head -n 1)
+# export NODE_ADDR=$(ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2;}'|tr -d "addr:"|head -n 1)
 export GPUS_PER_NODE=8
+export NODE_ADDR="127.0.0.1"
+
 export NUM_NODES=$(cat $HOSTFILE | wc -l)
 export MASTER_ADDR=$(head -n1 $HOSTFILE | awk '{print $1;}')
-export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks["'$NODE_ADDR'"];}' $HOSTFILE)
+#export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks["'$NODE_ADDR'"];}' $HOSTFILE)
 # export NODE_RANK=$(awk '{ranks[$1]=(FNR-1);}END{print ranks[$NODE_ADDR];}' $HOSTFILE)
-export MASTER_PORT=14388
-# export MUSA_LAUNCH_BLOCKING=1
+export NODE_RANK=0
+
+export MASTER_PORT=12355
+
 
 DISTRIBUTED_ARGS=(
     --nproc_per_node $GPUS_PER_NODE 
@@ -65,15 +67,13 @@ DISTRIBUTED_ARGS=(
 )
 
 MODEL_ARGS=(
-    --num-layers 32
+    --num-layers 32 
     --hidden-size 4096 
-    --ffn-hidden-size 14336
     --num-attention-heads 32 
-    --group-query-attention 
-    --num-query-groups 8
     --seq-length 4096 
     --max-position-embeddings 4096 
     --norm-epsilon 1e-5 
+    --init-method-std 0.01 
     --attention-dropout 0.0 
     --hidden-dropout 0.0 
     --disable-bias-linear 
@@ -90,11 +90,9 @@ TRAINING_ARGS=(
     --micro-batch-size $MICRO_BATCH_SIZE 
     --global-batch-size $GLOBAL_BATCH_SIZE  
     --train-samples 24414062 
-    --init-method-std 0.008
+    --init-method-std 0.0165 
     --use-mcore-models 
     --no-gradient-accumulation-fusion 
-    --no-bias-dropout-fusion
-    --no-bias-swiglu-fusion
     --use-distributed-optimizer 
     --use-flash-attn 
     --sequence-parallel 
@@ -104,9 +102,7 @@ TRAINING_ARGS=(
     --distributed-backend nccl 
     --transformer-impl transformer_engine
 )
-    # --no-rope-fusion
 
-# --transformer-impl local transformer_engine
 REGULARIZATION_ARGS=(
     --weight-decay 0.1 
     --adam-beta1 0.9 
@@ -128,7 +124,7 @@ LEARNING_RATE_ARGS=(
 
 MODEL_PARALLEL_ARGS=(
 	--tensor-model-parallel-size $TP_SIZE  
-	--pipeline-model-parallel-size $PP_SIZE
+	--pipeline-model-parallel-size $PP_SIZE 
 )
 
 MIXED_PRECISION_ARGS=(
@@ -140,7 +136,7 @@ MIXED_PRECISION_ARGS=(
 
 DATA_ARGS="
     --data-path $DATA_PATH \
-    --tokenizer-type Llama2Tokenizer \
+    --tokenizer-type=SentencePieceTokenizer \
     --tokenizer-model ${TOKENIZED_MODEL} \
     --split 1
 "
@@ -156,8 +152,8 @@ DATA_ARGS="
 
 EVAL_AND_LOGGING_ARGS=(
     --log-interval 1
-    --save-interval 200000 
-    --eval-interval 1000 
+    --save-interval 10000000
+    --eval-interval 100000 
     --save $CHECKPOINT_PATH 
     --load $CHECKPOINT_PATH 
     --eval-iters 0

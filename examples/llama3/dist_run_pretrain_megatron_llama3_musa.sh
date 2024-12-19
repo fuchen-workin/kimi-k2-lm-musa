@@ -22,13 +22,14 @@ set -u
   HOSTFILE=./hostfile
   LOG_FILE=./output/$CURRENT_TIME/$EXPNAME.log
   TOKENIZED_MODEL=/home/dist/yehua/dataset/llama2_dataset/tokenizer.model
-  SCRIPT_FILE=./7B/run_pretrain_llama2_musa.sh
+  SCRIPT_FILE=./8B/run_pretrain_llama3_musa.sh
+  RDZV_ID=$CURRENT_TIME
 set +u
 
 cmd="bash -c 'cd $WORK_HOME; \
      bash $SCRIPT_FILE $WORK_HOME $PATCH_HOME $EXPNAME $HOSTFILE \"$DATA_PATH\" \
      $TP_SIZE $PP_SIZE \
-     $MICRO_BATCH_SIZE $GLOBAL_BATCH_SIZE $TOKENIZED_MODEL"
+     $MICRO_BATCH_SIZE $GLOBAL_BATCH_SIZE $TOKENIZED_MODEL $RDZV_ID"
 
 COUNT=0
 hostlist=$(grep -v '^#\|^$' $HOSTFILE | awk '{print $1}' | xargs)
@@ -37,7 +38,8 @@ hostlen=$(cat $HOSTFILE | wc -l )
 COUNT=0
 hostlist=$(grep -v '^#\|^$' $HOSTFILE | awk '{print $1}' | xargs)
 for host in ${hostlist[@]}; do
-  cmd_ssh=$cmd" > $LOG_FILE.$COUNT.$host 2>&1'"
+  # cmd_ssh=$cmd" > $LOG_FILE.$COUNT.$host 2>&1'"
+  cmd_ssh=$cmd" &'"
   # cmd_ssh=$cmd" '"
   echo $cmd_ssh
   ssh -f -n $host $cmd_ssh

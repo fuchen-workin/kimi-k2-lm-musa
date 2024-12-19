@@ -11,9 +11,10 @@ set -u
   MICRO_BATCH_SIZE=$8
   GLOBAL_BATCH_SIZE=${9}
   TOKENIZED_MODEL=${10}
+  RDZV_ID=${11}
 set +u
-# export ENABLE_PROFILER=1
-# export PROFILER_FREQ=4
+export ENABLE_PROFILER=1
+export PROFILER_FREQ=4
 export OMP_NUM_THREADS=4
 export MUSA_VISIBLE_DEVICES='0,1,2,3,4,5,6,7'
 export MUSA_KERNEL_TIMEOUT=3200000
@@ -62,6 +63,8 @@ DISTRIBUTED_ARGS=(
     --node_rank $NODE_RANK 
     --master_addr $MASTER_ADDR 
     --master_port $MASTER_PORT 
+    --log_dir $WORK_HOME/output_log/$RDZV_ID/$EXPNAME
+    --redirects 3
 )
 
 MODEL_ARGS=(
