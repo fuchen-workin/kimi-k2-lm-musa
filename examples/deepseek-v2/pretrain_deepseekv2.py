@@ -8,7 +8,8 @@ from contextlib import nullcontext
 import inspect
 
 from typing import List, Optional, Tuple, Union
-if os.getenv("ACCELERATOR_BACKEND", "musa") == "musa":
+# if os.getenv("ACCELERATOR_BACKEND", "musa") == "musa":
+if os.getenv("ACCELERATOR_BACKEND") == "musa":
     import musa_patch
 else:
     import cuda_patch
