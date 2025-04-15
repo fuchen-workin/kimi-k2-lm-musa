@@ -57,69 +57,71 @@ mkdir -p $WB_PATH
 
 
 export NODE_ADDR=$(ip a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2;}'|tr -d "addr:"|head -n1 | cut -d '/' -f1) # tail for cuda/ head for musa
-export GPUS_PER_NODE=${GPUS_PER_NODE:-8}
+export GPUS_PER_NODE=8
 export NUM_NODES=$(cat $HOSTFILE | wc -l)
 export MASTER_ADDR=$(head -n1 $HOSTFILE | awk '{print $1;}')
 export NODE_RANK=$(awk -v node_addr="$NODE_ADDR" '{ranks[$1]=(FNR-1);} END {print ranks[node_addr];}' $HOSTFILE)
 export MASTER_PORT=12356
 
-echo "Distributed log_dir: $WORK_HOME/output_log/$RDZV_ID/$EXPNAME"
-
 DISTRIBUTED_ARGS=(
-    --nproc_per_node $GPUS_PER_NODE
-    --nnodes $NUM_NODES
-    --node_rank $NODE_RANK
-    --master_addr $MASTER_ADDR
+    --nproc_per_node $GPUS_PER_NODE 
+    --nnodes $NUM_NODES 
+    --node_rank $NODE_RANK 
+    --master_addr $MASTER_ADDR 
     --master_port $MASTER_PORT
     --log_dir $WORK_HOME/output_log/$RDZV_ID/$EXPNAME
     --redirects ${LOG_REDIRECTS_LEVEL:-3}
 )
 
 MODEL_ARGS=(
-    --num-layers 2  # 60
+    --num-layers 63
     --hidden-size 5120
     --num-attention-heads 128
-    --seq-length 4096
-    --max-position-embeddings 4096
-    --norm-epsilon 1e-6
-    --attention-dropout 0.0
-    --hidden-dropout 0.0
-    --disable-bias-linear
-    --vocab-size 102400
-    --ffn-hidden-size 12288  # 12288 for dense, but for sequentialMLP, moe-ffn-hidden-size=1536
-    --position-embedding-type rope
-    --no-position-embedding
-    --swiglu
+    --seq-length 4096 
+    --max-position-embeddings 4096 
+    --norm-epsilon 1e-6 
+    --attention-dropout 0.0 
+    --hidden-dropout 0.0 
+    --disable-bias-linear 
+    --vocab-size 102400 
+    --ffn-hidden-size 12288  # 12288 for dense, but for sequentialMLP, moe-ffn-hidden-size=1536 
+    --position-embedding-type rope 
+    --no-position-embedding 
+    --swiglu 
     --normalization RMSNorm
     --untie-embeddings-and-output-weights
-    # --cross-entropy-loss-fusion
 )
 
 # 24414062 1T
 TRAINING_ARGS=(
-    --seed 42
-    --micro-batch-size $MICRO_BATCH_SIZE
-    --global-batch-size $GLOBAL_BATCH_SIZE
-    --train-samples 24414062
-    --init-method-std  0.006 # 0.02 in HF config, but 0.006 in the paper
-    --use-mcore-models
+    --seed 42 
+    --micro-batch-size $MICRO_BATCH_SIZE 
+    --global-batch-size $GLOBAL_BATCH_SIZE  
+    --train-samples 24414062 
+    --init-method-std  0.006 # 0.02 in HF config, but 0.006 in the paper 
+    --use-mcore-models 
     # --no-gradient-accumulation-fusion
     --no-bias-dropout-fusion
     # --no-bias-swiglu-fusion
-    --use-distributed-optimizer
-    --use-flash-attn
-    --sequence-parallel
-    --recompute-granularity full
-    --recompute-method block
+    --use-distributed-optimizer 
+    --use-flash-attn 
+    --sequence-parallel 
+    --recompute-granularity full 
+    --recompute-method block 
     --recompute-num-layers 0
     --distributed-backend nccl
     --multi-latent-attention
     --qk-layernorm
-    # --attn-recompute
-    # --recompute-variance
-    # --mlp-recompute       
-    # --mla-rms-recompute
-    # --mlp-rms-recompute
+    --decoder-last-pipeline-num-layers 3
+    --attn-recompute
+    --recompute-variance
+    --mlp-recompute   
+    --mla-rms-recompute
+    --mlp-rms-recompute
+
+    # --optimizer-cpu-offload    #yehua
+    # --optimizer-offload-fraction 1.0 #yehua
+    # --use-precision-aware-optimizer  #yehua
 )
 
 MLA_ARGS=(
@@ -132,33 +134,33 @@ MLA_ARGS=(
 )
 
 REGULARIZATION_ARGS=(
-    --weight-decay 0.1
-    --adam-beta1 0.9
-    --adam-beta2 0.95
-    --clip-grad 1.0
+    --weight-decay 0.1 
+    --adam-beta1 0.9 
+    --adam-beta2 0.95 
+    --clip-grad 1.0 
 )
 
 WARMUP_STEPS=2000
 WARMUP_SAMPLES=$((WARMUP_STEPS * GLOBAL_BATCH_SIZE))
 
 LEARNING_RATE_ARGS=(
-    --lr 1.5e-5
-    --lr-decay-style cosine
-    --lr-warmup-samples ${WARMUP_SAMPLES}
-    --min-lr 1.5e-6
-    --initial-loss-scale 65536
-    --min-loss-scale 1.0
+    --lr 1.5e-5 
+    --lr-decay-style cosine 
+    --lr-warmup-samples ${WARMUP_SAMPLES} 
+    --min-lr 1.5e-6 
+    --initial-loss-scale 65536 
+    --min-loss-scale 1.0 
 )
 
 MODEL_PARALLEL_ARGS=(
-	--tensor-model-parallel-size $TP_SIZE
-	--pipeline-model-parallel-size $PP_SIZE
+	--tensor-model-parallel-size $TP_SIZE  
+	--pipeline-model-parallel-size $PP_SIZE 
 )
 
 MIXED_PRECISION_ARGS=(
-    --bf16
-    --attention-softmax-in-fp32
-    --no-masked-softmax-fusion
+    --bf16 
+    --attention-softmax-in-fp32 
+    --no-masked-softmax-fusion 
     --accumulate-allreduce-grads-in-fp32
 )
 
@@ -167,18 +169,17 @@ DATA_ARGS=(
     --tokenizer-type NullTokenizer
     # --tokenizer-model ${TOKENIZED_MODEL}
     --split 1
-    #--dataloader-type mtepx  #default single
 )
 
 EVAL_AND_LOGGING_ARGS=(
     --log-interval 1
     --log-throughput
-    --save-interval 100000
-    --eval-interval 1
-    --save $CHECKPOINT_PATH
-    --load $CHECKPOINT_PATH
+    --save-interval 100000 
+    --eval-interval 1 
+    --save $CHECKPOINT_PATH 
+    --load $CHECKPOINT_PATH 
     --eval-iters 0
-    --tensorboard-dir $TB_PATH
+    --tensorboard-dir $TB_PATH 
 )
 
 NUM_LAYERS=$(echo "${MODEL_ARGS[@]}" | grep -oP '(?<=--num-layers )\d+')
@@ -199,7 +200,7 @@ MOE_ARGS=(
     --moe-aux-loss-coeff 3e-3
     --moe-expert-capacity-factor 1
     --moe-device-level-capacity
-    --moe-device-level-aux-loss-coeff 5e-2
+    --moe-device-level-aux-loss-coeff 5e-2 
     --moe-comm-aux-loss-coeff 2e-2
     --moe-ffn-hidden-size 1536
     --moe-shared-expert-intermediate-size 3072
@@ -210,17 +211,17 @@ MOE_ARGS=(
 
 TRANSFORMER_ENGINE_ARGS=(
     --transformer-impl transformer_engine
-    --fp8-format hybrid
-    --fp8-param-gather
+    # --fp8-format hybrid
+    # --fp8-param-gather
 )
-
+    
 # --moe-z-loss-coeff 1e-3
-# --moe-expert-capacity-factor 4.0
+# --moe-expert-capacity-factor 4.0 
 # --moe-pad-expert-input-to-capacity
 # if [ -n "${WANDB_API_KEY}" ]; then
 #     EVAL_AND_LOGGING_ARGS+=(
 #         --wandb-project ${WANDB_PROJECT:-"Mixtral-Finetuning"}
-#         --wandb-exp-name ${WANDB_NAME:-"Mixtral_8x7B"}
+#         --wandb-exp-name ${WANDB_NAME:-"Mixtral_8x7B"} 
 #     )
 # fi
 
@@ -237,16 +238,5 @@ cmd="torchrun ${DISTRIBUTED_ARGS[@]} $WORK_HOME/pretrain_deepseekv2.py \
         ${EVAL_AND_LOGGING_ARGS[@]} \
         ${TRANSFORMER_ENGINE_ARGS[@]}
     "
-
-USE_EPX=${USE_EPX:-0}
-
-# run cmd directly
-if [ $USE_EPX -eq 0 ]; then
-  echo $cmd
-  $cmd
-  exit $?
-fi
-
-# run cmd with fault tolerance
-source "${PATCH_HOME}/examples/deepseek-v2/deepseek-v2-lite/fault_tolerance_function.sh"
-ft_training "$cmd"
+echo $cmd
+$cmd
