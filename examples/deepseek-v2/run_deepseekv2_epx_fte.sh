@@ -47,12 +47,24 @@ while [[ $# -gt 0 ]]; do
             MASTER_ADDR="$2"
             shift
             ;;
+        --epx_master_addr)
+            EPX_MASTER_ADDR="$2"
+            shift
+            ;;
         --ccp_port)
             EPX_CCP_PORT="$2"
             shift
             ;;
         --store_port)
             EPX_STORE_PORT="$2"
+            shift
+            ;;
+        -r|--replica)
+            EPX_REPLICA_RANK="$2"
+            shift
+            ;;
+        --replica_parallel_size)
+            EPX_REPLICA_PARALLEL_SIZE="$2"
             shift
             ;;
         -h|--help)
@@ -71,21 +83,27 @@ setup_epx_env() {
 
     HOST_ADDR=$(ip addr show bond0 | grep -oP 'inet \K[\d.]+' | head -1)
     MASTER_ADDR=${MASTER_ADDR:-$HOST_ADDR} # set master addr default to host addr
+    EPX_MASTER_ADDR=${EPX_MASTER_ADDR:-$MASTER_ADDR}
 
     echo "EPX HOST_ADDR: $HOST_ADDR"
-    echo "EPX MASTER_ADDR: $MASTER_ADDR"
+    echo "MASTER_ADDR: $MASTER_ADDR"
+    echo "EPX MASTER_ADDR: $EPX_MASTER_ADDR"
 
     export USE_EPX=1
+
     # Enabled when EPX_FT_MODE_ENABLED=1 to make default process group backend be ftepx
-    export DIST_BACKEND='ftepx'
+    # export DIST_BACKEND='ftepx'
+
     # EPX working mode, only one mode can be enabled at a time
     export EPX_ELASTIC_MODE_ENABLED=0
-    export EPX_FT_MODE_ENABLED=1
+    export EPX_FT_MODE_ENABLED=0
+    export EPX_FTE_MODE_ENABLED=1
+
     # CCP ADDR and PORT
-    export EPX_CCP_ADDR="$MASTER_ADDR"
+    export EPX_CCP_ADDR=${EPX_CCP_ADDR:-$EPX_MASTER_ADDR}
     export EPX_CCP_PORT=${EPX_CCP_PORT:-9009}
     # # STORE ADDR and PORT
-    export EPX_STORE_ADDR="$MASTER_ADDR"
+    export EPX_STORE_ADDR=${EPX_STORE_ADDR:-$EPX_MASTER_ADDR}
     export EPX_STORE_PORT=${EPX_STORE_PORT:-45678}
     # EPX_LCP_ADDR and PORT
     export EPX_LCP_ADDR="$HOST_ADDR"
@@ -95,13 +113,15 @@ setup_epx_env() {
     export USE_MCCL_BACKEND=1 # epx environment
 
     export EPX_GROUP_RANK=8
+    export EPX_REPLICA_RANK=${EPX_REPLICA_RANK:-0} # default 0
+    export EPX_REPLICA_PARALLEL_SIZE=${EPX_REPLICA_PARALLEL_SIZE:-1} # default 1
 
     EPX_PATH=$ROOT_PATH/epx
     EPX_STORE_PATH="${EPX_PATH}/epx-py/examples/epx_store.py"
     export PYTHONPATH=${EPX_PATH}/epx-py/python:$PYTHONPATH
     export EPX_LCP_BIN="$EPX_PATH/target/debug/epx-lcp"
 
-    if [ "$MASTER_ADDR" = "$HOST_ADDR" ]; then
+    if [ "$EPX_STORE_ADDR" = "$HOST_ADDR" ]; then
         python $EPX_STORE_PATH --addr "$HOST_ADDR" &
         STORE_PID=$!
     fi
@@ -114,12 +134,12 @@ set_common_env() {
     # 10:DEBUG, 20:INFO, 30:WARNING, 40:ERROR, 50:FATAL
     # export MEGATRON_LOGGING_LEVEL=30
     export RUN_LOCAL=1
-    export GPUS_PER_NODE=8
+    export GPUS_PER_NODE=1
 
     export TP_SIZE=1
     export PP_SIZE=1
     export EP_SIZE=1
-    export WORLD_SIZE=8
+    export WORLD_SIZE=1 # world size of a single replica
     export MICRO_BATCH_SIZE=1
     export NUM_MICROBATCHES=1
     export MOE_NUM_EXPERTS=20
