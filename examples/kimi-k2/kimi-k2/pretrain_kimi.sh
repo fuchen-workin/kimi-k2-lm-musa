@@ -82,7 +82,7 @@ DISTRIBUTED_ARGS=(
 
 MODEL_ARGS=(
     --num-layers 1  # 61 
-    --hidden-size 7168
+    --hidden-size 8192
     --num-attention-heads 128
     --seq-length 4096 
     --max-position-embeddings 4096 
@@ -91,7 +91,7 @@ MODEL_ARGS=(
     --hidden-dropout 0.0 
     --disable-bias-linear 
     --vocab-size 129280
-    --ffn-hidden-size 2048  # 18432 for groupGEMM; 2048 for sequentialMLP
+    --ffn-hidden-size 18432
     --position-embedding-type rope 
     --no-position-embedding 
     --swiglu 
@@ -180,18 +180,14 @@ EVAL_AND_LOGGING_ARGS=(
 )
 
 MOE_ARGS=(
-    --num-experts 256
+    --num-experts 384
     --expert-model-parallel-size $EP_SIZE
     --moe-token-dispatcher-type alltoall
     --moe-router-num-groups 8
     --moe-router-group-topk 4
-    # --moe-noaux-gamma 1e-2 #1e-3
-    --moe-router-load-balancing-type seq_aux_loss
-    --moe-complementary-seq-aux-loss
     --moe-router-topk 8
-    --moe-router-score-function sigmoid #deepseek use sigmoid
-    --moe-router-norm-topk-prob #norm topk prob with sigmoid
-    --moe-router-topk-scaling-factor 2.5 # pre-softmax need scaling
+    --moe-router-score-function sigmoid
+    --moe-router-topk-scaling-factor 2.5
     --moe-ffn-hidden-size 2048
     --moe-shared-expert-intermediate-size 2048
     --moe-layer-freq "([1]*1)"
@@ -199,7 +195,6 @@ MOE_ARGS=(
     --moe-router-enable-expert-bias
     --moe-router-bias-update-rate 1e-3
     --moe-router-dtype fp32
-    --moe-aux-loss-coeff 1e-4
     # --overlap-moe-expert-parallel-comm
     # --moe-permute-fusion
 )
@@ -217,7 +212,7 @@ MULTI_TOKEN_PREDICTION_ARGS=(
     --mtp-depth 1
 )
 
-cmd="torchrun ${DISTRIBUTED_ARGS[@]} $WORK_HOME/pretrain_deepseekv3.py \
+cmd="torchrun ${DISTRIBUTED_ARGS[@]} $WORK_HOME/pretrain_kimi.py \
         ${MODEL_ARGS[@]} \
         ${TRAINING_ARGS[@]} \
         ${REGULARIZATION_ARGS[@]}
