@@ -519,6 +519,10 @@ def training_log(loss_dict, total_loss_dict, learning_rate, decoupled_learning_r
                 wandb_writer.log({'iteration-time': elapsed_time_per_iteration},
                                  iteration)
         log_string = f" [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]"
+        mfu = throughput / 465 
+        tokens_per_gpu_per_second = float(batch_size * args.seq_length) / elapsed_time_per_iteration / args.world_size 
+        log_string += ' tokens_per_gpu_per_second: {:.2f} /s |'.format(tokens_per_gpu_per_second) 
+        log_string += ' mfu: {:.4f} |'.format(mfu) 
         log_string += ' iteration {:8d}/{:8d} |'.format(
             iteration, args.train_iters)
         # mfu = throughput / 465
